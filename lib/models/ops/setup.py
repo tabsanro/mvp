@@ -44,14 +44,22 @@ def get_extensions():
 
     sources = main_file + source_cpu
     extension = CppExtension
-    extra_compile_args = {"cxx": []}
+    extra_compile_args={
+        'cxx': ['-std=c++14'],
+        'nvcc': [
+            '-ccbin=/usr/bin/g++-10',  # <- 이게 핵심
+            '-std=c++14',
+            '--expt-relaxed-constexpr'
+        ]
+    }
+
     define_macros = []
 
     if torch.cuda.is_available() and CUDA_HOME is not None:
         extension = CUDAExtension
         sources += source_cuda
         define_macros += [("WITH_CUDA", None)]
-        extra_compile_args["nvcc"] = [
+        extra_compile_args["nvcc"] += [
             "-DCUDA_HAS_FP16=1",
             "-D__CUDA_NO_HALF_OPERATORS__",
             "-D__CUDA_NO_HALF_CONVERSIONS__",
