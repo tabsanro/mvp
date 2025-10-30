@@ -44,12 +44,11 @@ from utils.utils import load_backbone_panoptic
 from getpass import getuser
 from socket import gethostname
 
-import lib.utils.misc as utils
+import utils.misc as utils
 import numpy as np
 import random
 from torch.utils.data import DistributedSampler
-from models.util.misc import is_main_process, collect_results
-from mmcv.runner import get_dist_info
+from models.util.misc import is_main_process, collect_results, get_dist_info
 import torch.distributed as dist
 from prettytable import PrettyTable
 

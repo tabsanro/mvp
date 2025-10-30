@@ -25,6 +25,7 @@ from collections import defaultdict, deque
 import datetime
 import pickle
 from typing import Optional, List
+import math
 
 import torch
 import torch.distributed as dist
@@ -32,10 +33,34 @@ from torch import Tensor
 
 # needed due to empty tensor bug in pytorch and torchvision 0.5
 import torchvision
-if float(torchvision.__version__[:3]) < 0.7:
-    from torchvision.ops import _new_empty_tensor
-    from torchvision.ops.misc import _output_size
 
+# 버전 호환성 처리
+def get_torchvision_version():
+    try:
+        version = float(torchvision.__version__[:3])
+    except:
+        version = 1.0  # 기본값으로 최신 버전 가정
+    return version
+
+TORCHVISION_VERSION = get_torchvision_version()
+
+# torchvision 버전별 호환성 처리
+if TORCHVISION_VERSION < 0.7:
+    try:
+        from torchvision.ops import _new_empty_tensor
+        from torchvision.ops.misc import _output_size
+    except ImportError:
+        # fallback implementations
+        def _new_empty_tensor(input_tensor, output_shape):
+            return torch.empty(output_shape, dtype=input_tensor.dtype, device=input_tensor.device)
+        
+        def _output_size(dim, input_tensor, size, scale_factor):
+            if size is not None:
+                return size
+            assert scale_factor is not None
+            if isinstance(scale_factor, (int, float)):
+                scale_factor = [scale_factor] * dim
+            return [int(math.floor(input_tensor.size(i + 2) * scale_factor[i])) for i in range(dim)]
 
 class SmoothedValue(object):
     """Track a series of values and provide access to smoothed values over a
@@ -440,7 +465,7 @@ def interpolate(input, size=None, scale_factor=None,
     This will eventually be supported natively by PyTorch, and this
     class can go away.
     """
-    if float(torchvision.__version__[:3]) < 0.7:
+    if TORCHVISION_VERSION < 0.7:
         if input.numel() > 0:
             return torch.nn.functional.interpolate(
                 input, size, scale_factor, mode, align_corners
@@ -450,5 +475,7 @@ def interpolate(input, size=None, scale_factor=None,
         output_shape = list(input.shape[:-2]) + list(output_shape)
         return _new_empty_tensor(input, output_shape)
     else:
-        return torchvision.ops.misc.interpolate(
-            input, size, scale_factor, mode, align_corners)
+        # 최신 torchvision에서는 표준 interpolate 함수 사용
+        return torch.nn.functional.interpolate(
+            input, size, scale_factor, mode, align_corners
+        )

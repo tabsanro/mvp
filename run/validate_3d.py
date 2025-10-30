@@ -34,9 +34,8 @@ from core.config import update_config
 from core.function import validate_3d
 from utils.utils import create_logger
 import lib.utils.misc as utils
-from mmcv.runner import get_dist_info
 from torch.utils.data import DistributedSampler
-from models.util.misc import is_main_process, collect_results
+from models.util.misc import is_main_process, collect_results, get_dist_info
 
 import _init_paths
 import dataset

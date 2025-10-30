@@ -28,15 +28,31 @@ from torch import Tensor
 # needed due to empty tensor bug in pytorch and torchvision 0.5
 import torchvision
 
-from mmcv.runner import get_dist_info
 import tempfile
-import mmcv
 import os.path as osp
 import shutil
 
-if float(torchvision.__version__[:3]) < 0.5:
+# 버전 호환성 처리 개선
+def get_torchvision_version():
+    try:
+        version = float(torchvision.__version__[:3])
+    except:
+        version = 1.0  # 기본값으로 최신 버전 가정
+    return version
+
+TORCHVISION_VERSION = get_torchvision_version()
+
+if TORCHVISION_VERSION < 0.5:
     import math
-    from torchvision.ops.misc import _NewEmptyTensorOp
+    
+    # _NewEmptyTensorOp이 없는 경우를 위한 대체 구현
+    try:
+        from torchvision.ops.misc import _NewEmptyTensorOp
+    except ImportError:
+        class _NewEmptyTensorOp:
+            @staticmethod
+            def apply(input, output_shape):
+                return torch.empty(output_shape, dtype=input.dtype, device=input.device)
 
     def _check_size_scale_factor(dim, size, scale_factor):
         # type: (int, Optional[List[int]], Optional[float]) -> None
@@ -69,10 +85,23 @@ if float(torchvision.__version__[:3]) < 0.5:
             int(math.floor(input.size(i + 2) * scale_factors[i]))
             for i in range(dim)
         ]
-elif float(torchvision.__version__[:3]) < 0.7:
-    from torchvision.ops import _new_empty_tensor
-    from torchvision.ops.misc import _output_size
-
+elif TORCHVISION_VERSION < 0.7:
+    try:
+        from torchvision.ops import _new_empty_tensor
+        from torchvision.ops.misc import _output_size
+    except ImportError:
+        def _new_empty_tensor(input, output_shape):
+            return torch.empty(output_shape, dtype=input.dtype, device=input.device)
+        
+        def _output_size(dim, input, size, scale_factor):
+            if size is not None:
+                return size
+            assert scale_factor is not None and isinstance(scale_factor, (int, float))
+            scale_factors = [scale_factor, scale_factor]
+            return [
+                int(input.size(i + 2) * scale_factors[i])
+                for i in range(dim)
+            ]
 
 class SmoothedValue(object):
     """Track a series of values and provide access to smoothed values over a
@@ -137,6 +166,50 @@ class SmoothedValue(object):
             value=self.value)
 
 
+def get_dist_info():
+    """Get distributed training info: rank and world_size.
+
+    Returns:
+        tuple: A tuple of (rank, world_size).
+    """
+    if not is_dist_avail_and_initialized():
+        return 0, 1
+    return get_rank(), get_world_size()
+
+
+def mkdir_or_exist(dir_path):
+    """Create directory if it doesn't exist.
+
+    Args:
+        dir_path (str): Directory path to create.
+    """
+    os.makedirs(dir_path, exist_ok=True)
+
+
+def dump(obj, file_path):
+    """Dump object to pickle file.
+
+    Args:
+        obj: Object to dump.
+        file_path (str): Path to save the pickle file.
+    """
+    with open(file_path, 'wb') as f:
+        pickle.dump(obj, f)
+
+
+def load(file_path):
+    """Load object from pickle file.
+
+    Args:
+        file_path (str): Path to the pickle file.
+
+    Returns:
+        Object loaded from the pickle file.
+    """
+    with open(file_path, 'rb') as f:
+        return pickle.load(f)
+
+
 def collect_results(result_part, size, tmpdir=None):
     rank, world_size = get_dist_info()
     # create a tmp dir if it is not specified
@@ -155,9 +228,9 @@ def collect_results(result_part, size, tmpdir=None):
         dist.broadcast(dir_tensor, 0)
         tmpdir = dir_tensor.cpu().numpy().tobytes().decode().rstrip()
     else:
-        mmcv.mkdir_or_exist(tmpdir)
+        mkdir_or_exist(tmpdir)
     # dump the part result to the dir
-    mmcv.dump(result_part, osp.join(tmpdir, 'part_{}.pkl'.format(rank)))
+    dump(result_part, osp.join(tmpdir, 'part_{}.pkl'.format(rank)))
     dist.barrier()
     # collect all parts
     if rank != 0:
@@ -167,7 +240,7 @@ def collect_results(result_part, size, tmpdir=None):
         part_list = []
         for i in range(world_size):
             part_file = osp.join(tmpdir, 'part_{}.pkl'.format(i))
-            part_list.append(mmcv.load(part_file))
+            part_list.append(load(part_file))
         # sort the results
         ordered_results = []
         for res in zip(*part_list):
@@ -557,7 +630,7 @@ def interpolate(input, size=None,
     This will eventually be supported natively by PyTorch, and this
     class can go away.
     """
-    if float(torchvision.__version__[:3]) < 0.7:
+    if TORCHVISION_VERSION < 0.7:
         if input.numel() > 0:
             return torch.nn.functional.interpolate(
                 input, size, scale_factor, mode, align_corners
@@ -565,12 +638,16 @@ def interpolate(input, size=None,
 
         output_shape = _output_size(2, input, size, scale_factor)
         output_shape = list(input.shape[:-2]) + list(output_shape)
-        if float(torchvision.__version__[:3]) < 0.5:
+        
+        if TORCHVISION_VERSION < 0.5:
             return _NewEmptyTensorOp.apply(input, output_shape)
-        return _new_empty_tensor(input, output_shape)
+        else:
+            return _new_empty_tensor(input, output_shape)
     else:
-        return torchvision.ops.misc.interpolate(
-            input, size, scale_factor, mode, align_corners)
+        # torchvision >= 0.7에서는 표준 함수 사용
+        return torch.nn.functional.interpolate(
+            input, size, scale_factor, mode, align_corners
+        )
 
 
 def get_total_grad_norm(parameters, norm_type=2):

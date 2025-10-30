@@ -1,0 +1,7 @@
+# ninja log v5
+0	2897	1761809504556570953	/home/dojan/workspace/mvp/lib/models/ops/build/temp.linux-x86_64-cpython-311/home/dojan/workspace/mvp/lib/models/ops/src/cpu/deform_cpu.o	5b7ce3bd076dafb
+0	9312	1761809510972573288	/home/dojan/workspace/mvp/lib/models/ops/build/temp.linux-x86_64-cpython-311/home/dojan/workspace/mvp/lib/models/ops/src/vision.o	76e507af2dfa20ee
+7	3316	1761809775487733889	/home/dojan/workspace/mvp/lib/models/ops/build/temp.linux-x86_64-cpython-311/home/dojan/workspace/mvp/lib/models/ops/src/cpu/deform_cpu.o	c54e85dde43f7f0b
+8	10966	1761809783109503248	/home/dojan/workspace/mvp/lib/models/ops/build/temp.linux-x86_64-cpython-311/home/dojan/workspace/mvp/lib/models/ops/src/vision.o	1aa35df1e090a7cc
+8	10782	1761809852210630054	/home/dojan/workspace/mvp/lib/models/ops/build/temp.linux-x86_64-cpython-311/home/dojan/workspace/mvp/lib/models/ops/src/vision.o	1aa35df1e090a7cc
+7	25505	1761809866953270446	/home/dojan/workspace/mvp/lib/models/ops/build/temp.linux-x86_64-cpython-311/home/dojan/workspace/mvp/lib/models/ops/src/cuda/deform_cuda.o	9223ff9f8067b3f

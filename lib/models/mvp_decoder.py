@@ -29,10 +29,10 @@ import torch.nn.functional as F
 from torch import nn
 # from torch.nn.init import xavier_uniform_, constant_, uniform_, normal_
 
-from lib.models.util.misc import inverse_sigmoid
-from lib.models.ops.modules import ProjAttn
+from models.util.misc import inverse_sigmoid
+from models.ops.modules import ProjAttn
 
-import lib.utils.cameras as cameras
+import utils.cameras as cameras
 from utils.transforms import get_affine_transform as get_transform
 # from utils.transforms import affine_transform_pts_cuda as do_transform
 from utils.transforms import \
