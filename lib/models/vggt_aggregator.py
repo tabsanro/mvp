@@ -16,118 +16,15 @@ from typing import Optional, Tuple, Union, List, Dict, Any
 # from vggt.layers.block import Block  
 # from vggt.layers.rope import RotaryPositionEmbedding2D, PositionGetter
 # from vggt.layers.vision_transformer import vit_small, vit_base, vit_large, vit_giant2
+from layers import PatchEmbed
+from layers.block import Block
+from layers.rope import RotaryPositionEmbedding2D, PositionGetter
+from layers.vision_transformer import vit_small, vit_base, vit_large, vit_giant2
 
 logger = logging.getLogger(__name__)
 
 _RESNET_MEAN = [0.485, 0.456, 0.406]
 _RESNET_STD = [0.229, 0.224, 0.225]
-
-
-# VGGT 의존성들을 위한 임시 플레이스홀더 구현
-class PatchEmbed(nn.Module):
-    """Simple patch embedding layer"""
-    def __init__(self, img_size=224, patch_size=16, in_chans=3, embed_dim=768):
-        super().__init__()
-        self.img_size = img_size
-        self.patch_size = patch_size
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
-        
-    def forward(self, x):
-        B, C, H, W = x.shape
-        x = self.proj(x)  # B, embed_dim, H', W'
-        x = x.flatten(2).transpose(1, 2)  # B, H'*W', embed_dim
-        return x
-
-
-class RotaryPositionEmbedding2D(nn.Module):
-    """Simple 2D rotary position embedding"""
-    def __init__(self, frequency=100):
-        super().__init__()
-        self.frequency = frequency
-    
-    def forward(self, pos, x):
-        # 임시 구현 - 실제로는 더 복잡한 rotary embedding
-        return x
-
-
-class PositionGetter(nn.Module):
-    """Position getter for rotary embedding"""
-    def __init__(self):
-        super().__init__()
-    
-    def __call__(self, batch_size, height, width, device):
-        # 2D position coordinates
-        y_pos = torch.arange(height, device=device).float()
-        x_pos = torch.arange(width, device=device).float()
-        y_pos, x_pos = torch.meshgrid(y_pos, x_pos, indexing='ij')
-        pos = torch.stack([x_pos, y_pos], dim=-1)  # H, W, 2
-        pos = pos.unsqueeze(0).expand(batch_size, -1, -1, -1)  # B, H, W, 2
-        pos = pos.reshape(batch_size, -1, 2)  # B, H*W, 2
-        return pos
-
-
-class Block(nn.Module):
-    """Transformer block with attention and FFN"""
-    def __init__(self, dim, num_heads, mlp_ratio=4.0, qkv_bias=True, 
-                 proj_bias=True, ffn_bias=True, init_values=0.01, 
-                 qk_norm=True, rope=None):
-        super().__init__()
-        self.norm1 = nn.LayerNorm(dim)
-        self.attn = nn.MultiheadAttention(dim, num_heads, bias=qkv_bias, batch_first=True)
-        self.norm2 = nn.LayerNorm(dim)
-        
-        mlp_hidden_dim = int(dim * mlp_ratio)
-        self.mlp = nn.Sequential(
-            nn.Linear(dim, mlp_hidden_dim, bias=ffn_bias),
-            nn.GELU(),
-            nn.Linear(mlp_hidden_dim, dim, bias=ffn_bias)
-        )
-        
-        self.rope = rope
-        if init_values > 0:
-            self.ls1 = nn.Parameter(init_values * torch.ones(dim))
-            self.ls2 = nn.Parameter(init_values * torch.ones(dim))
-        else:
-            self.ls1 = None
-            self.ls2 = None
-    
-    def forward(self, x, pos=None):
-        # Self attention
-        x_norm = self.norm1(x)
-        if self.rope is not None and pos is not None:
-            x_norm = self.rope(pos, x_norm)
-        
-        attn_out, _ = self.attn(x_norm, x_norm, x_norm)
-        if self.ls1 is not None:
-            attn_out = attn_out * self.ls1
-        x = x + attn_out
-        
-        # FFN
-        mlp_out = self.mlp(self.norm2(x))
-        if self.ls2 is not None:
-            mlp_out = mlp_out * self.ls2
-        x = x + mlp_out
-        
-        return x
-
-
-# Vision transformer 함수들을 위한 플레이스홀더
-def vit_small(**kwargs):
-    """Small Vision Transformer"""
-    return nn.Identity()  # 임시 구현
-
-def vit_base(**kwargs):
-    """Base Vision Transformer"""
-    return nn.Identity()  # 임시 구현
-
-def vit_large(**kwargs):
-    """Large Vision Transformer"""  
-    return nn.Identity()  # 임시 구현
-
-def vit_giant2(**kwargs):
-    """Giant Vision Transformer"""
-    return nn.Identity()  # 임시 구현
-
 
 class Aggregator(nn.Module):
     """
