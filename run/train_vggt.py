@@ -76,6 +76,17 @@ def parse_args():
 
     return args
 
+def load_backbone_vggt(model, pretrained_file):
+    _URL = "https://huggingface.co/facebook/VGGT-1B/resolve/main/model.pt"
+    if not os.path.exists(pretrained_file):
+        save_dir = os.path.dirname(pretrained_file)
+        os.makedirs(save_dir, exist_ok=True)
+        torch.hub.download_url_to_file(_URL, pretrained_file, progress=True)
+    checkpoint = torch.load(pretrained_file, map_location='cpu')
+    model.load_state_dict(checkpoint['model'], strict=False)
+    print('=> load VGGT backbone from {}'.format(pretrained_file))
+    return model
+
 
 def match_name_keywords(n, name_keywords):
     out = False
@@ -205,9 +216,14 @@ def main():
 
     end_epoch = config.TRAIN.END_EPOCH
 
+    # if config.NETWORK.PRETRAINED_BACKBONE:
+    #     _ = load_backbone_panoptic(model_without_ddp,
+    #                                config.NETWORK.PRETRAINED_BACKBONE)
     if config.NETWORK.PRETRAINED_BACKBONE:
-        _ = load_backbone_panoptic(model_without_ddp,
-                                   config.NETWORK.PRETRAINED_BACKBONE)
+        model_without_ddp = load_backbone_vggt(
+            model_without_ddp.vggt_aggregator,
+            config.NETWORK.PRETRAINED_BACKBONE
+        )
     if config.TRAIN.FINETUNE_MODEL is not None:
         start_epoch, _, optimizer, best_precision = load_checkpoint_best(
             model_without_ddp, optimizer,
@@ -325,4 +341,11 @@ def main():
 
 
 if __name__ == '__main__':
+    import sys
+    if sys.argv.__len__() == 1:
+        sys.argv.extend(
+            [
+                '--cfg', 'configs/panoptic/vggt_mvp_config.yaml'
+            ]
+        )
     main()
