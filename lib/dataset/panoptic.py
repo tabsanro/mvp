@@ -48,6 +48,7 @@ TRAIN_LIST = [
     '160906_band2',
     # '160906_band3',
 ]
+
 VAL_LIST = ['160906_pizza1', '160422_haggling1', '160906_ian5', '160906_band4']
 
 JOINTS_DEF = {
@@ -104,6 +105,10 @@ class Panoptic(JointsDataset):
             self.cam_list = [(0, 12), (0, 6), (0, 23), (0, 13), (0, 3)][
                             :self.num_views]
             self.num_views = len(self.cam_list)
+
+        # avg_scale for VGGT Normalization
+        self.avg_scale = 1.0
+        self.avg_scale = self.get_avg_panoptic_camera_scale()
 
         self.db_file = 'group_{}_cam{}.pkl'.\
             format(self.image_set, self.num_views)
@@ -219,7 +224,7 @@ class Panoptic(JointsDataset):
                                 'joints_3d_vis': all_poses_vis_3d,
                                 'joints_2d': all_poses,
                                 'joints_2d_vis': all_poses_vis,
-                                'camera': our_cam
+                                'camera': our_cam,
                             })
         return db
 
@@ -255,12 +260,36 @@ class Panoptic(JointsDataset):
         input, meta = [], []
         for k in range(self.num_views):
             i, m = super().__getitem__(self.num_views * idx + k)
+            
+            # add avg_scale to meta
+            m['avg_scale'] = self.avg_scale
+
             input.append(i)
             meta.append(m)
         return input, meta
 
     def __len__(self):
         return self.db_size // self.num_views
+    
+    def get_avg_panoptic_camera_scale(self):
+        seq = self.sequence_list[0]  # 첫 번째 시퀀스만 사용
+        cam_file = osp.join(self.dataset_root, seq,
+                            'calibration_{:s}.json'.format(seq))
+        with open(cam_file) as cfile:
+            calib = json.load(cfile)
+
+        M = np.array([[1.0, 0.0, 0.0],
+                      [0.0, 0.0, -1.0],
+                      [0.0, 1.0, 0.0]])
+        cam_positions = []
+        for cam in calib['cameras']:
+            R = np.array(cam['R']).dot(M)
+            t = np.array(cam['t']).reshape((3, 1))
+            cam_pos = -R.T @ t
+            cam_positions.append(cam_pos.flatten())
+        cam_positions = np.array(cam_positions)  # (C, 3)
+        avg_scale = np.linalg.norm(cam_positions, axis=1).mean()
+        return avg_scale
 
     def evaluate(self, preds):
         eval_list = []

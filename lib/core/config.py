@@ -104,6 +104,25 @@ config.POSE_RESNET.NUM_DECONV_FILTERS = [256, 256, 256]
 config.POSE_RESNET.NUM_DECONV_KERNELS = [4, 4, 4]
 config.POSE_RESNET.FINAL_CONV_KERNEL = 1
 
+# VGGT configuration
+config.VGGT = edict()
+config.VGGT.PATCH_SIZE = 14                    # Patch size for VGGT
+config.VGGT.EMBED_DIM = 768                    # Embedding dimension
+config.VGGT.DEPTH = 12                         # Number of transformer layers
+config.VGGT.NUM_HEADS = 12                     # Number of attention heads
+config.VGGT.MLP_RATIO = 4.0                    # MLP expansion ratio
+config.VGGT.NUM_REGISTER_TOKENS = 4            # Number of register tokens
+config.VGGT.AA_ORDER = ["frame", "global"]  # Alternating attention order
+config.VGGT.AA_BLOCK_SIZE = 1                  # Block size for alternating attention
+config.VGGT.ROPE_FREQ = 100                    # Rotary embedding frequency
+config.VGGT.QKV_BIAS = True                    # Use bias in QKV projections
+config.VGGT.PROJ_BIAS = True                   # Use bias in output projections
+config.VGGT.FFN_BIAS = True                    # Use bias in FFN layers
+config.VGGT.QK_NORM = True                     # Apply QK normalization
+config.VGGT.INIT_VALUES = 0.01                 # Layer scale initialization
+config.VGGT.PATCH_EMBED = "conv"               # Patch embedding type (conv or dinov2_*)
+config.VGGT.USE_CHECKPOINT = True              # Use gradient checkpointing
+
 config.LOSS = edict()
 config.LOSS.USE_TARGET_WEIGHT = True
 config.LOSS.USE_DIFFERENT_JOINTS_WEIGHT = False
@@ -142,6 +161,10 @@ config.TRAIN.WD = 0.0001
 config.TRAIN.NESTEROV = False
 config.TRAIN.GAMMA1 = 0.99
 config.TRAIN.GAMMA2 = 0.0
+
+# VGGT-specific training settings
+config.TRAIN.VGGT_LR_MULT = 0.1
+config.TRAIN.GRADIENT_CLIP = 1.0
 
 config.TRAIN.BEGIN_EPOCH = 0
 config.TRAIN.END_EPOCH = 140

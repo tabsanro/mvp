@@ -23,6 +23,9 @@ from __future__ import print_function
 
 import models.pose_resnet
 import models.multi_view_pose_transformer
+import models.vggt_aggregator
+import models.vggt_mvp_transformer
+import models.vggt_mvp_decoder
 
 import models.mvp_decoder
 import models.util

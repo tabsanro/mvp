@@ -22,7 +22,7 @@ import os
 import torch
 
 from utils.vis import save_debug_3d_images
-
+from utils.normalization import normalize_camera_extrinsics_and_points_batch
 from models.util.misc import get_total_grad_norm, is_main_process
 
 
@@ -56,6 +56,10 @@ def train_3d(config, model, optimizer, loader, epoch,
     end = time.time()
     for i, (inputs, meta) in enumerate(loader):
         assert len(inputs) == num_views
+
+        # 데이터 정규화 for VGGT
+        meta = normalize_camera_extrinsics_and_points_batch(meta)
+
         inputs = [i.to(device) for i in inputs]
         meta = [{k: v.to(device) if isinstance(v, torch.Tensor) else v
                  for k, v in t.items()} for t in meta]
@@ -161,6 +165,9 @@ def validate_3d(config, model, loader, output_dir, threshold, num_views=5):
         for i, (inputs, meta) in enumerate(loader):
             data_time.update(time.time() - end)
             assert len(inputs) == num_views
+
+            # 데이터 정규화 for VGGT
+            meta = normalize_camera_extrinsics_and_points_batch(meta)
 
             output = model(views=inputs, meta=meta)
 
